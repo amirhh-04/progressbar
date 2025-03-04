@@ -18,6 +18,9 @@ mythic_action = {
     },
     prop = {
         model = nil,
+        bone = nil,
+        coords = { x = 0.0, y = 0.0, z = 0.0 },
+        rotation = { x = 0.0, y = 0.0, z = 0.0 },
     },
 }
 
@@ -28,13 +31,13 @@ local isAnim = false
 local isProp = false
 local prop_net = nil
 
-RegisterNetEvent("mythic_progbar:client:progress")
-AddEventHandler("mythic_progbar:client:progress", function(action, cb)
+function Progress(action, finish)
     mythic_action = action
 
-    if not IsEntityDead(GetPlayerPed(-1)) or mythic_action.useWhileDead then
+    if not IsEntityDead(PlayerPedId()) or mythic_action.useWhileDead then
         if not isDoingAction then
             isDoingAction = true
+            mainThread()
             wasCancelled = false
             isAnim = false
             isProp = false
@@ -48,12 +51,12 @@ AddEventHandler("mythic_progbar:client:progress", function(action, cb)
             Citizen.CreateThread(function ()
                 while isDoingAction do
                     Citizen.Wait(0)
-                    if IsControlJustPressed(0, 178) and mythic_action.canCancel then
+                    if IsControlJustPressed(0, 73) and mythic_action.canCancel then
                         TriggerEvent("mythic_progbar:client:cancel")
                     end
                 end
-                if cb ~= nil then
-                    cb(wasCancelled)
+                if finish ~= nil then
+                    finish(wasCancelled)
                 end
             end)
         else
@@ -62,18 +65,160 @@ AddEventHandler("mythic_progbar:client:progress", function(action, cb)
     else
         print('Cannot do action while dead') -- Replace with alert call if you want the player to see this warning on-screen
     end
+end
+
+function ProgressWithStartEvent(action, start, finish)
+    mythic_action = action
+
+    if not IsEntityDead(PlayerPedId()) or mythic_action.useWhileDead then
+        if not isDoingAction then
+            isDoingAction = true
+            mainThread()
+            wasCancelled = false
+            isAnim = false
+            isProp = false
+
+            SendNUIMessage({
+                action = "mythic_progress",
+                duration = mythic_action.duration,
+                label = mythic_action.label
+            })
+
+            Citizen.CreateThread(function ()
+                if start ~= nil then
+                    start()
+                end
+                while isDoingAction do
+                    Citizen.Wait(1)
+                    if IsControlJustPressed(0, 178) and mythic_action.canCancel then
+                        TriggerEvent("mythic_progbar:client:cancel")
+                    end
+                end
+                if finish ~= nil then
+                    finish(wasCancelled)
+                end
+            end)
+        else
+            TriggerEvent("mythic_base:client:SendAlert", { text = "Already Doing An Action", type = "error", layout = "topRight", timeout = 1500 })
+        end
+    else
+        TriggerEvent("mythic_base:client:SendAlert", { text = "Cannot Perform An Action While Dead", type = "error", layout = "topRight", timeout = 1500 })
+    end
+end
+
+function ProgressWithTickEvent(action, tick, finish)
+    mythic_action = action
+
+    if not IsEntityDead(PlayerPedId()) or mythic_action.useWhileDead then
+        if not isDoingAction then
+            isDoingAction = true
+            mainThread()
+            wasCancelled = false
+            isAnim = false
+            isProp = false
+
+            SendNUIMessage({
+                action = "mythic_progress",
+                duration = mythic_action.duration,
+                label = mythic_action.label
+            })
+
+            Citizen.CreateThread(function ()
+                while isDoingAction do
+                    Citizen.Wait(1)
+                    if tick ~= nil then
+                        tick()
+                    end
+                    if IsControlJustPressed(0, 178) and mythic_action.canCancel then
+                        TriggerEvent("mythic_progbar:client:cancel")
+                    end
+                end
+                if finish ~= nil then
+                    finish(wasCancelled)
+                end
+            end)
+        else
+            TriggerEvent("mythic_base:client:SendAlert", { text = "Already Doing An Action", type = "error", layout = "topRight", timeout = 1500 })
+        end
+    else
+        TriggerEvent("mythic_base:client:SendAlert", { text = "Cannot Perform An Action While Dead", type = "error", layout = "topRight", timeout = 1500 })
+    end
+end
+
+function ProgressWithStartAndTick(action, start, tick, finish)
+    mythic_action = action
+
+    if not IsEntityDead(PlayerPedId()) or mythic_action.useWhileDead then
+        if not isDoingAction then
+            isDoingAction = true
+            mainThread()
+            wasCancelled = false
+            isAnim = false
+            isProp = false
+
+            SendNUIMessage({
+                action = "mythic_progress",
+                duration = mythic_action.duration,
+                label = mythic_action.label
+            })
+
+            Citizen.CreateThread(function ()
+                if start ~= nil then
+                    start()
+                end
+                while isDoingAction do
+                    Citizen.Wait(1)
+                    if tick ~= nil then
+                        tick()
+                    end
+                    if IsControlJustPressed(0, 178) and mythic_action.canCancel then
+                        TriggerEvent("mythic_progbar:client:cancel")
+                    end
+                end
+                if finish ~= nil then
+                    finish(wasCancelled)
+                end
+            end)
+        else
+            print('Already Doing An Action')
+        end
+    else
+        print('Cannot Perform An Action While Dead')
+    end
+end
+
+RegisterNetEvent("mythic_progbar:client:progress")
+AddEventHandler("mythic_progbar:client:progress", function(action, finish)
+    Progress(action, finish)
+end)
+
+RegisterNetEvent("mythic_progbar:client:ProgressWithStartEvent")
+AddEventHandler("mythic_progbar:client:ProgressWithStartEvent", function(action, start, finish)
+    ProgressWithStartEvent(action, start, finish)
+end)
+
+RegisterNetEvent("mythic_progbar:client:ProgressWithTickEvent")
+AddEventHandler("mythic_progbar:client:ProgressWithTickEvent", function(action, tick, finish)
+    ProgressWithTickEvent(action, tick, finish)
+end)
+
+RegisterNetEvent("mythic_progbar:client:ProgressWithStartAndTick")
+AddEventHandler("mythic_progbar:client:ProgressWithStartAndTick", function(action, start, tick, finish)
+    ProgressWithStartAndTick(action, start, tick, finish)
 end)
 
 RegisterNetEvent("mythic_progbar:client:cancel")
 AddEventHandler("mythic_progbar:client:cancel", function()
-    isDoingAction = false
-    wasCancelled = true
+    if isDoingAction then
+        isDoingAction = false
+        wasCancelled = true
 
-    TriggerEvent("mythic_progbar:client:actionCleanup")
+        TriggerEvent("mythic_progbar:client:actionCleanup")
 
-    SendNUIMessage({
-        action = "mythic_progress_cancel"
-    })
+        SendNUIMessage({
+            action = "mythic_progress_cancel"
+        })
+    end
 end)
 
 RegisterNetEvent("mythic_progbar:client:actionCleanup")
@@ -87,9 +232,10 @@ AddEventHandler("mythic_progbar:client:actionCleanup", function()
 end)
 
 -- Disable controls while GUI open
-Citizen.CreateThread(function()
-    while true do
-        if isDoingAction then
+function mainThread()
+    Citizen.CreateThread(function()
+        while isDoingAction do
+            Citizen.Wait(5)
             if not isAnim then
                 if mythic_action.animation ~= nil then
                     if mythic_action.animation.task ~= nil then
@@ -100,6 +246,7 @@ Citizen.CreateThread(function()
                         end
 
                         local player = PlayerPedId()
+
                         if ( DoesEntityExist( player ) and not IsEntityDead( player )) then
                             loadAnimDict( mythic_action.animation.animDict )
                             TaskPlayAnim( player, mythic_action.animation.animDict, mythic_action.animation.anim, 3.0, 1.0, -1, mythic_action.animation.flags, 0, 0, 0, 0 )     
@@ -111,31 +258,42 @@ Citizen.CreateThread(function()
 
                 isAnim = true
             end
+
             if not isProp and mythic_action.prop ~= nil and mythic_action.prop.model ~= nil then
                 RequestModel(mythic_action.prop.model)
-
                 while not HasModelLoaded(GetHashKey(mythic_action.prop.model)) do
                     Citizen.Wait(0)
                 end
 
-                local pCoords = GetOffsetFromEntityInWorldCoords(GetPlayerPed(PlayerId()), 0.0, 0.0, 0.0)
+                local pCoords = GetOffsetFromEntityInWorldCoords(PlayerPedId(), 0.0, 0.0, 0.0)
                 local modelSpawn = CreateObject(GetHashKey(mythic_action.prop.model), pCoords.x, pCoords.y, pCoords.z, true, true, true)
-
                 local netid = ObjToNet(modelSpawn)
                 SetNetworkIdExistsOnAllMachines(netid, true)
                 NetworkSetNetworkIdDynamic(netid, true)
                 SetNetworkIdCanMigrate(netid, false)
-                AttachEntityToEntity(modelSpawn, GetPlayerPed(PlayerId()), GetPedBoneIndex(GetPlayerPed(PlayerId()), 60309), 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1, 1, 0, 1, 0, 1)
-                prop_net = netid
 
+                if mythic_action.prop.bone == nil then
+                    mythic_action.prop.bone = 60309
+                end
+
+                if mythic_action.prop.coords == nil then
+                    mythic_action.prop.coords = { x = 0.0, y = 0.0, z = 0.0 }
+                end
+
+                if mythic_action.prop.rotation == nil then
+                    mythic_action.prop.rotation = { x = 0.0, y = 0.0, z = 0.0 }
+                end
+
+                AttachEntityToEntity(modelSpawn, PlayerPedId(), GetPedBoneIndex(PlayerPedId(), mythic_action.prop.bone), mythic_action.prop.coords.x, mythic_action.prop.coords.y, mythic_action.prop.coords.z, mythic_action.prop.rotation.x, mythic_action.prop.rotation.y, mythic_action.prop.rotation.z, 1, 1, 0, 1, 0, 1)
+                prop_net = netid
+                SetModelAsNoLongerNeeded(mythic_action.prop.model)
                 isProp = true
             end
 
-            DisableActions(GetPlayerPed(-1))
+            DisableActions(PlayerPedId())
         end
-        Citizen.Wait(0)
-    end
-end)
+    end)
+end
 
 function loadAnimDict(dict)
 	while (not HasAnimDictLoaded(dict)) do
@@ -194,3 +352,7 @@ RegisterNUICallback('actionCancel', function(data, cb)
     -- Do something here
     cb('ok')
 end)
+
+function getAction()
+    return isDoingAction
+end
